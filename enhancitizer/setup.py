@@ -1,3 +1,13 @@
+# ------------------------------------------------------------------------------
+#
+# Author:
+#   Armin Hasitzka (enhancitizer@hasitzka.com)
+#
+# Licensed under the MIT license.
+#   See LICENSE in the project root for license information.
+#
+# ------------------------------------------------------------------------------
+
 import argparse
 import re
 
@@ -19,7 +29,7 @@ class ArgParser:
         self.show_version = False
         self.logfile_path = None
         self.output_dir_path = None
-    
+
     def collect(self):
         args = self.parser.parse_args()
         self.show_version = args.show_version
