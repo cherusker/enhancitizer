@@ -11,7 +11,9 @@
 import re
 import os
 
-class Contexter:
+class TaskReportContext:
+
+    description = "Adding context ..."
 
     stack_depth_max = 3 # max amount of lookups from the top of the call stack
 
@@ -27,23 +29,24 @@ class Contexter:
     start_stack_lookup_tsan_pattern = re.compile(
         '^\s*(?:previous\s)?(?:read|write)\sof\ssize\s\d+\sat\s0x[\da-f]+\sby\s', re.IGNORECASE)
     
-    def add_context_to_file(self, orig_file_path):
+    def process(self, report):
 
-        print('Contexter: adding context to ' + orig_file_path)
+        report_file_path = report.meta.file_path
+        print('TaskReportContext: adding context to ' + report_file_path)
 
-        context_file_path = orig_file_path + '.ctx'
-        with open(context_file_path, 'w') as context_file:
-            context_file.write('\n')
+        buffer_file_path = report_file_path + '.ctx'
+        with open(buffer_file_path, 'w') as buffer_file:
+            buffer_file.write('\n')
 
-            with open(orig_file_path, 'r') as orig_file:
+            with open(report_file_path, 'r') as report_file:
                 stack_lookup = False # lookup is limited to "special" stack traces
-                for line in orig_file:
+                for line in report_file:
                     if not stack_lookup:
                         stack_lookup = self.start_stack_lookup(line)
                     else:
                         stack_item = self.stack_item_pattern.search(line)
                         if stack_item and int(stack_item.group('depth')) < self.stack_depth_max:
-                            context_file.write(self.get_context_function(
+                            buffer_file.write(self.get_context_function(
                                 stack_item.group('src_file_path'),
                                 stack_item.group('func_name'),
                                 int(stack_item.group('line_num')),
@@ -51,17 +54,17 @@ class Contexter:
                             # stack_lookup = True
                         else:
                             stack_lookup = False
-                orig_file.close()
+                report_file.close()
                 
-            with open(orig_file_path, 'r') as orig_file:
-                for line in orig_file:
-                    context_file.write(line)
-                orig_file.close()
+            with open(report_file_path, 'r') as report_file:
+                for line in report_file:
+                    buffer_file.write(line)
+                report_file.close()
 
-            context_file.close()
+            buffer_file.close()
 
-            os.remove(orig_file_path)
-            os.rename(context_file_path, orig_file_path)
+            os.remove(report_file_path)
+            os.rename(buffer_file_path, report_file_path)
         
         return self
 

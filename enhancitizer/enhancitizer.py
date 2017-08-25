@@ -10,15 +10,16 @@
 #
 # ------------------------------------------------------------------------------
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 import os
 import shutil
 import time
 
-from bank import ReportsBank, ReportsBankIterator
-from context import Contexter
+from bank.bank import ReportsBank
 from setup import ArgParser
+from tasks.context import TaskReportContext
+from tasks.stuff import TaskSummary
 
 def main():
 
@@ -46,22 +47,30 @@ def main():
     bank = ReportsBank().extract(arg_parser.logfile_path, arg_parser.output_dir_path)
     print()
 
-    # TODO: implement passes
-    
+    for task in [
+            TaskReportContext(),
+            TaskSummary()
+    ]:
+        if hasattr(task, 'description'):
+            print(task.description)
+        if hasattr(task, 'setup'):
+            task.setup()
+        if hasattr(task, 'process_meta'):
+            for meta_report in bank.meta_reports:
+                task.process_meta(meta_report)
+        if hasattr(task, 'process'):
+            for report in bank:
+                task.process(report)
+        if hasattr(task, 'teardown'):
+            task.teardown()
+        if hasattr(task, 'description'):
+            print()
+
+    exit()
     print("Adding context ...")
     contexter = Contexter()
     for report in ReportsBankIterator(bank):
         contexter.add_context_to_file(report.meta.file_path)
-    print()
-
-    # TODO: implement the summary as a pass
-    print('Summary:')
-    reports_info = bank.reports_counter.data
-    if len(reports_info) < 1:
-        print('  nothing found')
-    else:
-        for name in sorted(reports_info):
-            print('  ' + name + ': ' + repr(reports_info[name]))
     print()
 
 if __name__ == "__main__":
