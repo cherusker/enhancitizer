@@ -10,13 +10,14 @@
 #
 # ------------------------------------------------------------------------------
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 import os
+import shutil
 import time
 
+from bank import ReportsBank, ReportsBankIterator
 from context import Contexter
-from extract import Extractor
 from setup import ArgParser
 
 def main():
@@ -30,29 +31,37 @@ def main():
     if not arg_parser.logfile_path or not arg_parser.output_dir_path:
         ArgParser.parser.print_help()
 
-    # TODO: check logfile_path
-    # TODO: create output_dir
+    # TODO: check logfile_path (within ArgParser?)
+
+    if os.path.exists(arg_parser.output_dir_path):
+        # TODO: ask to overwrite
+        shutil.rmtree(arg_parser.output_dir_path)
+    os.makedirs(arg_parser.output_dir_path)
+
+    # TODO: add a nice welcome message?
 
     print('\nSettings:\n  logfile: ' + arg_parser.logfile_path + '\n  output folder: ' + arg_parser.output_dir_path + '\n')
 
-    issues_info = Extractor(arg_parser.output_dir_path) \
-                  .extract(arg_parser.logfile_path) \
-                  .issues_counter.data
-
+    print("Extracting files ...")
+    bank = ReportsBank().extract(arg_parser.logfile_path, arg_parser.output_dir_path)
     print()
-    
-    contexter = Contexter()
-    if os.path.exists(arg_parser.output_dir_path):
-        for file_name in sorted(os.listdir(arg_parser.output_dir_path)):
-            contexter.add_context_to_file(arg_parser.output_dir_path + file_name)
 
-    print('\nSummary:')
-    if len(issues_info) < 1:
+    # TODO: implement passes
+    
+    print("Adding context ...")
+    contexter = Contexter()
+    for report in ReportsBankIterator(bank):
+        contexter.add_context_to_file(report.meta.file_path)
+    print()
+
+    # TODO: implement the summary as a pass
+    print('Summary:')
+    reports_info = bank.reports_counter.data
+    if len(reports_info) < 1:
         print('  nothing found')
     else:
-        for name in sorted(issues_info):
-            print('  ' + name + ': ' + repr(issues_info[name]))
-
+        for name in sorted(reports_info):
+            print('  ' + name + ': ' + repr(reports_info[name]))
     print()
 
 if __name__ == "__main__":
