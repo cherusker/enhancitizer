@@ -16,7 +16,7 @@ class TaskSummary:
     def setup(self):
         self.counter = NameCounter()
 
-    def process_meta(self, meta_report):
+    def process_report(self, meta_report):
         self.counter.inc(meta_report.category + ' (' + meta_report.sanitizer + ')')
 
     def teardown(self):

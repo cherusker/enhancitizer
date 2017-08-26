@@ -8,12 +8,12 @@
 #
 # ------------------------------------------------------------------------------
 
-import argparse
+from argparse import ArgumentParser
 import re
 
 class ArgParser:
 
-    parser = argparse.ArgumentParser(description='Find stack traces of Clang\'s sanitizers and generate enhanced versions.')
+    parser = ArgumentParser(description='Find stack traces of Clang\'s sanitizers and generate enhanced versions.')
     parser.add_argument('-v', '--version',
                         dest='show_version',
                         help='Show version information.',

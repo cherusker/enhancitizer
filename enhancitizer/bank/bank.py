@@ -8,8 +8,7 @@
 #
 # ------------------------------------------------------------------------------
 
-from bank.extractor import TSanExtractor
-from bank.report import Report
+from bank.extractor import Report, TSanReportExtractor
 
 class ReportsBank:
     """Extracts reports from a log file and stores objects of ReportsBankReport"""
@@ -35,7 +34,7 @@ class ReportsBank:
             # the start patterns matche the 2nd line of a report, hence we have to buffer the line before that
             last_line = ''
             extractors = [
-                TSanExtractor(output_dir_path)
+                TSanReportExtractor(output_dir_path)
             ]
 
             for line in log_file:
