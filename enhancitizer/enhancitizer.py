@@ -10,49 +10,63 @@
 #
 # ------------------------------------------------------------------------------
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
 
 import os
-import shutil
-import time
 
 from bank.bank import ReportsBank
-from setup import ArgParser
+from options import Options
 from tasks.blacklist import TaskCreateTSanBlacklist
-from tasks.csv import TaskTSanCsvSummary
 from tasks.context import TaskAddTSanContext
+from tasks.csv import TaskTSanCsvSummary
 from tasks.stuff import TaskSummary
 
 def main():
 
-    arg_parser = ArgParser().collect()
+    Options.collect()
 
-    if arg_parser.show_version:
-        print('version: ' + __version__)
+    if Options.show_version:
+        print('\nenhancitizer version ' + __version__ + '\n')
         exit()
 
-    if not arg_parser.logfile_path or not arg_parser.output_dir_path:
-        ArgParser.parser.print_help()
+    if not Options.project_root_path or not Options.logfile_path or not Options.output_root_path:
+        Options.show_usage()
 
-    # TODO: check logfile_path (within ArgParser?)
+    if not os.path.isdir(Options.project_root_path):
+        print('\nError: PROJECT-ROOT is no valid directory.')
+        Options.show_usage()
 
-    if os.path.exists(arg_parser.output_dir_path):
-        # TODO: ask to overwrite
-        shutil.rmtree(arg_parser.output_dir_path)
-    os.makedirs(arg_parser.output_dir_path)
+    if not os.path.isfile(Options.logfile_path):
+        print('\nError: LOGFILE is no valid file.')
+        Options.show_usage()
+
+    if os.path.isfile(Options.output_root_path):
+        print('\nError: OUTPUT-FOLDER is a file.')
+        Options.show_usage()
+
+    if not os.path.isdir(Options.output_root_path):
+        try:
+            os.makedirs(Options.output_root_path)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
 
     # TODO: add a nice welcome message?
 
     print('\nSettings:\n' + \
-          '  logfile: ' + arg_parser.logfile_path + '\n' + \
-          '  output folder: ' + arg_parser.output_dir_path + '\n')
+          '  project root:  ' + Options.project_root_path + '\n' + \
+          '  logfile:       ' + Options.logfile_path + '\n' + \
+          '  output folder: ' + Options.output_root_path + '\n')
 
-    print("Extracting reports ...")
-    bank = ReportsBank().extract(arg_parser.logfile_path, arg_parser.output_dir_path)
+    bank = ReportsBank()
+    print("Collecting existing reports ...")
+    bank.collect()
+    print("\nExtracting new reports ...")
+    bank.extract()
     print()
 
     for task in [
-            TaskCreateTSanBlacklist(arg_parser.output_dir_path),
+            TaskCreateTSanBlacklist(),
             TaskTSanCsvSummary(),
             # add the context rather late in the game to speed up the parsing of the previous tasks
             TaskAddTSanContext(),

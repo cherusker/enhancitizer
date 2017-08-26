@@ -9,9 +9,10 @@
 # ------------------------------------------------------------------------------
 
 import csv
+import os
 import re
 
-from bank.extractor import Report
+from bank.extraction import Report
 
 class TaskCsvSummaryCategory:
 
@@ -31,7 +32,7 @@ class TaskCsvSummary:
 
     def add_row(self, dir_path, row):
         if not dir_path in self.csv_files:
-            csv_file_path = dir_path + self.csv_file_name
+            csv_file_path = os.path.join(dir_path, self.csv_file_name)
             csv_file = open(csv_file_path, 'w')
             if csv_file:
                 print('  creating ' + csv_file_path)
@@ -53,7 +54,7 @@ class TaskTSanCsvSummary(TaskCsvSummary):
     expected_funcs_per_report = 2
 
     def process_report(self, meta_report):
-        if meta_report.sanitizer == 'ThreadSanitizer' and meta_report.category == 'Data race':
+        if meta_report.sanitizer == 'ThreadSanitizer' and meta_report.category == 'data race':
 
             report = Report(meta_report)
             row = [repr(meta_report.no)]
@@ -65,6 +66,7 @@ class TaskTSanCsvSummary(TaskCsvSummary):
                     stack_item = stack.items[0]
                     func_no += 1
                     details = [
+                        '?' if not stack_item.src_file_dir_rel_path else stack_item.src_file_dir_rel_path,
                         '?' if not stack_item.src_file_name else stack_item.src_file_name,
                         '?' if not stack_item.func_name else stack_item.func_name,
                         stack_title_search.group('operation').lower()
@@ -72,6 +74,6 @@ class TaskTSanCsvSummary(TaskCsvSummary):
                     row.extend(list(reversed(details) if func_no == 2 else details))
                         
             for i in range(func_no, self.expected_funcs_per_report):
-                row.extend(['?', '?', '?'])
+                row.extend(['?', '?', '?', '?'])
 
             self.add_row(meta_report.dir_path, row)

@@ -18,16 +18,33 @@ class NameCounter:
         self.data = OrderedDict()
 
     def inc(self, name):
-        """Increases the count of name and returns the increased value"""
+        """Increases the counter of name and returns the increased value"""
         if name in self.data:
             self.data[name] += 1
         else:
-            self.data.update({name: 1})
+            self.data.update({ name: 1 })
             self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
-        return self.data[name]
+        return self.get(name)
+
+    def get(self, name):
+        """Returns the count of name (0 for nonexisting namea)"""
+        return self.data.get(name, 0)
+
+    def set(self, name, value):
+        """Sets the counter of name and returns the value"""
+        if name in self.data:
+            self.data[name] = value
+        else:
+            self.data.update({ name: value })
+            self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
+        return self.get(name)
 
 class FileUtils:
     """Collection to deal with files"""
+
+    def absolute_path(path):
+        """Converts file_path to a path string that contains "/" (no "\") and a trailing /"""
+        return None if not path else os.path.abspath(os.path.expanduser(path))
 
     def create_folders(file_path):
         """Creates necessary folders in order to write file_path"""

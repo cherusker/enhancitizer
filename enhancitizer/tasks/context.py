@@ -11,7 +11,7 @@
 import re
 import os
 
-from bank.extractor import Report
+from bank.extraction import Report
 
 class TaskAddTSanContext:
 

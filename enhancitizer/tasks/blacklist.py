@@ -9,20 +9,22 @@
 # ------------------------------------------------------------------------------
 
 from collections import OrderedDict
+import os
 import re
 
-from bank.extractor import Report
+from bank.extraction import Report
+from options import Options
 from utils import FileUtils
 
 class TaskCreateBlacklist:
     """Base class for creating blacklists; can be inherited to make more sense"""
 
-    blacklists_dir_path = 'blacklists/'
+    blacklists_dir_path = 'blacklists'
 
-    def __init__(self, sanitizer_name, stack_title_pattern, output_dir_path, blacklist_file_name):
+    def __init__(self, sanitizer_name, stack_title_pattern, blacklist_file_name):
         self.sanitizer_name = sanitizer_name
         self.stack_title_pattern = stack_title_pattern
-        self.blacklist_file_path = output_dir_path + self.blacklists_dir_path + blacklist_file_name
+        self.blacklist_file_path = os.path.join(Options.output_root_path, self.blacklists_dir_path, blacklist_file_name)
 
     def setup(self):
         self.data = OrderedDict()
@@ -59,7 +61,5 @@ class TaskCreateTSanBlacklist(TaskCreateBlacklist):
     tsan_stack_title_pattern = re.compile('(?:read|write)\sof\ssize', re.IGNORECASE)
     tsan_blacklist_file_name = 'clang-tsan-blacklist'
 
-    def __init__(self, output_dir_path):
-        super().__init__(
-            self.tsan_sanitizer_name, self.tsan_stack_title_pattern,
-            output_dir_path, self.tsan_blacklist_file_name)
+    def __init__(self):
+        super().__init__(self.tsan_sanitizer_name, self.tsan_stack_title_pattern, self.tsan_blacklist_file_name)

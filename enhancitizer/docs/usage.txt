@@ -1,0 +1,17 @@
+Usage: ./enhancitizer.py [OPTIONS] [PROJECT-ROOT] [LOGFILE] [OUTPUT-FOLDER]
+
+  Enhance the reports of various Clang Sanitizers.
+
+Arguments:
+
+  PROJECT-ROOT   The root directory (absolute, or relative to this program) of
+                 the project that has been analysed with Clang. It is
+                 important, that this argument matches the file paths that can
+                 be found in Clang's stack traces.
+  LOGFILE        Location of the log file that contains stack traces of Clang.
+  OUTPUT-FOLDER  This is where all the magic goes. If omitted, it will be set
+                 to "enhancitizer".
+
+Options:
+
+  -v --version   Print the version information.
