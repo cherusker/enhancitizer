@@ -12,42 +12,39 @@ from collections import OrderedDict
 import os
 import re
 
-from bank.extraction import Report
-from options import Options
 from utils import FileUtils
 
-class TaskCreateBlacklist:
+class TaskCreateBlacklist(object):
     """Base class for creating blacklists; can be inherited to make more sense"""
 
-    blacklists_dir_path = 'blacklists'
+    __blacklists_dir_path = 'blacklists'
 
-    def __init__(self, sanitizer_name, stack_title_pattern, blacklist_file_name):
-        self.sanitizer_name = sanitizer_name
-        self.stack_title_pattern = stack_title_pattern
-        self.blacklist_file_path = os.path.join(Options.output_root_path, self.blacklists_dir_path, blacklist_file_name)
+    def __init__(self, options, sanitizer_name, stack_title_pattern, blacklist_file_name):
+        self.__sanitizer_name = sanitizer_name
+        self.__stack_title_pattern = stack_title_pattern
+        self.__blacklist_file_path = os.path.join(
+            options.output_root_path, self.__blacklists_dir_path, blacklist_file_name)
 
     def setup(self):
-        self.data = OrderedDict()
+        self.__data = OrderedDict()
 
-    def process_report(self, meta_report):
-        if meta_report.sanitizer == self.sanitizer_name:
-            for stack in Report(meta_report).call_stacks:
-                stack_item = stack.items[0]
-                if self.stack_title_pattern.search(stack.title) and stack_item.complete():
-                    file_name = stack_item.src_file_name
-                    func_name = stack_item.func_name
-                    if not file_name in self.data:
-                        print('  adding ' + func_name)
-                        self.data[file_name] = { func_name }
-                    elif not func_name in self.data[file_name]:
-                        print('  adding ' + func_name)
-                        self.data[file_name].add(func_name)
+    def process(self, report):
+        if report.sanitizer == self.__sanitizer_name:
+            for stack in report.call_stacks:
+                item = stack.items[0]
+                if self.__stack_title_pattern.search(stack.title) and item.complete:
+                    file_name = item.src_file_name
+                    func_name = item.func_name
+                    if not file_name in self.__data:
+                        self.__data[file_name] = set()
+                    print('  adding ' + func_name)
+                    self.__data.get(file_name).add(func_name)
 
     def teardown(self):
-        print('  creating ' + self.blacklist_file_path)
-        FileUtils.create_folders(self.blacklist_file_path)
-        with open(self.blacklist_file_path, 'w') as blacklist_file:
-            for file_name, func_names in sorted(self.data.items(), key=lambda d: d[0]):
+        print('  creating ' + self.__blacklist_file_path)
+        FileUtils.create_folders(self.__blacklist_file_path)
+        with open(self.__blacklist_file_path, 'w') as blacklist_file:
+            for file_name, func_names in sorted(self.__data.items(), key=lambda d: d[0]):
                 blacklist_file.write('\n# ' + file_name + ' #\n\n')
                 for func_name in func_names:
                     blacklist_file.write('fun:' + func_name + '\n')
@@ -57,9 +54,12 @@ class TaskCreateTSanBlacklist(TaskCreateBlacklist):
 
     description = 'Creating TSan blacklist ...'
 
-    tsan_sanitizer_name = 'ThreadSanitizer'
-    tsan_stack_title_pattern = re.compile('(?:read|write)\sof\ssize', re.IGNORECASE)
-    tsan_blacklist_file_name = 'clang-tsan-blacklist'
+    __tsan_sanitizer_name = 'ThreadSanitizer'
+    __tsan_stack_title_pattern = re.compile('(?:read|write)\sof\ssize', re.IGNORECASE)
+    __tsan_blacklist_file_name = 'clang-tsan-blacklist'
 
-    def __init__(self):
-        super().__init__(self.tsan_sanitizer_name, self.tsan_stack_title_pattern, self.tsan_blacklist_file_name)
+    def __init__(self, options):
+        super(TaskCreateTSanBlacklist, self).__init__(options,
+                         self.__tsan_sanitizer_name,
+                         self.__tsan_stack_title_pattern,
+                         self.__tsan_blacklist_file_name)

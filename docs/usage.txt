@@ -1,6 +1,6 @@
 Usage: ./enhancitizer.py [OPTIONS] [PROJECT-ROOT] [LOGFILE] [OUTPUT-FOLDER]
 
-  Enhance the reports of various Clang Sanitizers.
+  Enhance the reports of various Clang sanitizers.
 
 Arguments:
 

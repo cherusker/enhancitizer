@@ -10,14 +10,14 @@
 
 from utils import NameCounter
 
-class TaskSummary:
+class TaskSummary(object):
     """Print various stats about the reports"""
     
     def setup(self):
         self.counter = NameCounter()
 
-    def process_report(self, meta_report):
-        self.counter.inc(meta_report.category + ' (' + meta_report.sanitizer + ')')
+    def process(self, report):
+        self.counter.inc(report.category + ' (' + report.sanitizer + ')')
 
     def teardown(self):
         print('Summary:')
@@ -25,6 +25,6 @@ class TaskSummary:
             print('  nothing found')
         else:
             for name, count in self.counter.data.items():
-                print('  ' + name + ': ' + repr(count))
+                print('  ' + name + ': ' + str(count))
         print()
         

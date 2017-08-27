@@ -8,37 +8,52 @@
 #
 # ------------------------------------------------------------------------------
 
+from copy import copy
 import os
 
-from bank.extraction import Report, TSanReportExtractor
-from options import Options
+from .extraction import TSanReportExtractor
 
-class ReportsBank:
+class ReportsBank(object):
     """Extracts reports from a log file and stores objects of ReportsBankReport"""
 
-    reports_dir_name = 'reports'
+    __reports_dir_name = 'reports'
 
-    def __init__(self):
-        self.meta_reports = []
-        self.reports_dir_path = os.path.join(Options.output_root_path, self.reports_dir_name)
-        self.extractors = [
-            TSanReportExtractor(self.reports_dir_path)
+    def __init__(self, options):
+        self.__options = options
+        self.__reports = []
+        self.__iter_pos = 0
+        self.__reports_dir_path = os.path.join(options.output_root_path, self.__reports_dir_name)
+        self.__extractors = [
+            TSanReportExtractor(options, self.__reports_dir_path)
         ]
 
-    def collect(self):
+    def __iter__(self):
+        self.__iter_pos = 0
+        return self
+
+    def __next__(self):
+        if self.__iter_pos >= len(self.__reports):
+            raise StopIteration
+        else:
+            self.__iter_pos += 1
+            # return a copy to remove call stacks automatically after possible usage
+            return copy(self.__reports[self.__iter_pos - 1])
+
+    def collect_reports(self):
         """Collect existing reports from the output folder"""
-        for extractor in self.extractors:
+        return
+        for extractor in self.__extractors:
             extractor.collect()
 
-    def extract(self):
+    def extract_reports(self):
         """Extract new reports from the logfile"""
         # we really only want one walk through large logfiles
-        with open(Options.logfile_path, 'r') as logfile:
+        with open(self.__options.logfile_path, 'r') as logfile:
             last_line = ''
             for line in logfile:
-                for extractor in self.extractors:
+                for extractor in self.__extractors:
                     extractor.extract(last_line, line)
                 last_line = line
             logfile.close()
-            for extractor in self.extractors:
-                self.meta_reports.extend(extractor.meta_reports)
+            for extractor in self.__extractors:
+                self.__reports.extend(extractor.reports)

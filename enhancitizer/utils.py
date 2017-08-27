@@ -11,7 +11,7 @@
 from collections import OrderedDict
 import os
 
-class NameCounter:
+class NameCounter(object):
     """Counts values with certain names and keeps an alphabetical order"""
     
     def __init__(self):
@@ -39,12 +39,8 @@ class NameCounter:
             self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
         return self.get(name)
 
-class FileUtils:
+class FileUtils(object):
     """Collection to deal with files"""
-
-    def absolute_path(path):
-        """Converts file_path to a path string that contains "/" (no "\") and a trailing /"""
-        return None if not path else os.path.abspath(os.path.expanduser(path))
 
     def create_folders(file_path):
         """Creates necessary folders in order to write file_path"""
