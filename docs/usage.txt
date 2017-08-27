@@ -1,4 +1,4 @@
-Usage: ./enhancitizer.py [OPTIONS] [PROJECT-ROOT] [LOGFILE] [OUTPUT-FOLDER]
+Usage: enhancitizer [OPTIONS] [PROJECT-ROOT] [LOGFILE] [OUTPUT-FOLDER]
 
   Enhance the reports of various Clang sanitizers.
 

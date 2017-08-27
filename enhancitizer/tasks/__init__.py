@@ -12,5 +12,6 @@ __all__ = [
     'blacklist',
     'context',
     'csv',
+    'duplication',
     'stuff'
 ]

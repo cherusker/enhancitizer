@@ -15,6 +15,7 @@ from options import Options
 from tasks.blacklist import TaskCreateTSanBlacklist
 from tasks.context import TaskAddTSanContext
 from tasks.csv import TaskTSanCsvSummary
+from tasks.duplication import TaskEliminateDuplicates
 from tasks.stuff import TaskSummary
 
 def main():
@@ -36,11 +37,12 @@ def main():
     print()
 
     for task in [
-            TaskCreateTSanBlacklist(options),
-            TaskTSanCsvSummary(),
-            # add the context rather late in the game to speed up the parsing of the previous tasks
-            TaskAddTSanContext(),
-            TaskSummary()
+        TaskEliminateDuplicates(bank),
+        TaskCreateTSanBlacklist(options),
+        TaskTSanCsvSummary(),
+        # add the context rather late in the game to speed up the parsing of the previous tasks
+        TaskAddTSanContext(),
+        TaskSummary()
     ]:
         if hasattr(task, 'description'):
             print(task.description)

@@ -39,6 +39,13 @@ class Report(object):
             self.__call_stacks = extractor.call_stacks
         return self.__call_stacks
 
+    @call_stacks.deleter
+    def call_stacks(self):
+        self.__call_stacks = None
+
+    def __str__(self):
+        return self.category + ' #' + str(self.no) + ' (' + self.sanitizer + ')'
+
     def __repr__(self):
         return 'MetaReport { ' + \
             'new: ' + repr(self.new) + ', ' + \
@@ -130,8 +137,8 @@ class ReportExtractor(object):
             no = self.__counter.inc(category)
         elif self.__counter.get(category) < no:
             self.__counter.set(category, no)
-        print('  found ' + category + ' #' + str(no) + ' (' + sanitizer + ')')
         report = Report(self.__options, new, sanitizer, category, no, self.__get_report_file_path(category, no))
+        print('  adding ' + str(report))
         self.reports.append(report)
         return report
 
@@ -149,12 +156,11 @@ class TSanReportExtractor(ReportExtractor):
 
     __sanitizer_name = 'ThreadSanitizer'
     __sanitizer_dir_name = 'tsan'
+    __categories = ['data race', 'thread leak']
 
     __start_line_pattern = re.compile('^warning:\sthreadsanitizer:\s(?P<category>[a-z\s]+)\s\(', re.IGNORECASE)
     __start_last_line_pattern = re.compile('^={18}$', re.MULTILINE)
     __end_line_pattern = __start_last_line_pattern
-
-    __categories = ['data race', 'thread leak']
 
     def __init__(self, options, reports_dir_path):
         super(TSanReportExtractor, self).__init__(options, os.path.join(reports_dir_path, self.__sanitizer_dir_name))

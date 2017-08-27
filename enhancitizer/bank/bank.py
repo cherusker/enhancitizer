@@ -32,16 +32,17 @@ class ReportsBank(object):
         return self
 
     def __next__(self):
+        if self.__iter_pos > 1:
+            # don't keep the call stacks; they would waste a huge amount of memory
+            del self.__reports[self.__iter_pos - 1].call_stacks
         if self.__iter_pos >= len(self.__reports):
             raise StopIteration
         else:
             self.__iter_pos += 1
-            # return a copy to remove call stacks automatically after possible usage
-            return copy(self.__reports[self.__iter_pos - 1])
+            return self.__reports[self.__iter_pos - 1]
 
     def collect_reports(self):
         """Collect existing reports from the output folder"""
-        return
         for extractor in self.__extractors:
             extractor.collect()
 
@@ -57,3 +58,8 @@ class ReportsBank(object):
             logfile.close()
             for extractor in self.__extractors:
                 self.__reports.extend(extractor.reports)
+
+    def remove_report(self, report):
+        """Deletes the report file and removes the report from the bank"""
+        os.remove(report.file_path)
+        self.__reports.remove(report)

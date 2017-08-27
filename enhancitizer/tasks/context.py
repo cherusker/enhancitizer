@@ -25,7 +25,7 @@ class TaskAddTSanContext(object):
         if report.new and report.sanitizer == 'ThreadSanitizer':
             report_file_path = report.file_path
             buffer_file_path = report_file_path + '.buffer'
-            print('  adding context to ' + report_file_path)
+            print('  adding context to ' + str(report))
             with open(buffer_file_path, 'w') as buffer_file:
                 buffer_file.write('\n')
                 for stack in report.call_stacks:
