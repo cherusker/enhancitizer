@@ -13,5 +13,6 @@ __all__ = [
     'context',
     'csv',
     'duplication',
+    'skelton',
     'stuff'
 ]

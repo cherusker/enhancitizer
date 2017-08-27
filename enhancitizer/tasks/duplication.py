@@ -14,10 +14,7 @@ class TaskEliminateDuplicates(object):
 
     description = 'Eliminating duplicate reports ...'
 
-    __tsan_data_race_fragment_stack_pattern = re.compile(
-        '(?P<identifier>(?:read|write)\sof\ssize\s\d+)\sat\s0x', re.IGNORECASE)
-    __tsan_data_race_fragments_max_stack_depth = 3
-    __tsan_leaking_thread_fragment_pattern = re.compile('^(?P<identifier>.+)\s\(tid=', re.IGNORECASE)
+    __tsan_data_race_max_stack_depth = 3
 
     def __init__(self, bank):
         self.__bank = bank
@@ -58,20 +55,18 @@ class TaskEliminateDuplicates(object):
     def __tsan_data_race_fragments(self, report):
         fragments = []
         for stack in report.call_stacks:
-            identifer_stack_search = self.__tsan_data_race_fragment_stack_pattern.search(stack.title)
-            if identifer_stack_search:
-                fragments.append(identifer_stack_search.group('identifier'))
-                items = stack.items
-                for i in range(0, min(len(items), self.__tsan_data_race_fragments_max_stack_depth)):
-                    fragments.append(items[i].src_file_rel_path)
-                    fragments.append(items[i].func_name)
-                    fragments.append(items[i].line_num)
-                    fragments.append(items[i].char_pos)
+            if stack.tsan_data_race.get('type'):
+                fragments.append(stack.tsan_data_race.get('type'))
+                fragments.append(stack.tsan_data_race.get('bytes'))
+                for i in range(min(len(stack.items), self.__tsan_data_race_max_stack_depth)):
+                    fragments.append(stack.items[i].src_file_rel_path)
+                    fragments.append(stack.items[i].func_name)
+                    fragments.append(stack.items[i].line_num)
+                    fragments.append(stack.items[i].char_pos)
         return fragments
 
     def __tsan_thread_leak_fragments(self, report):
         for stack in report.call_stacks:
-            identifier_search = self.__tsan_leaking_thread_fragment_pattern.search(stack.title)
-            if identifier_search:
-                return [identifier_search.group('identifier')]
+            if stack.tsan_thread_leak.get('thread_name'):
+                return [stack.tsan_thread_leak.get('thread_name')]
         return []

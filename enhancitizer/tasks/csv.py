@@ -33,7 +33,7 @@ class TaskCsvSummary(object):
                     'file': csv_file,
                     'writer': csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
                 }
-        self.__csv_files.get(dir_path).get('writer').writerow(row)
+        self.__csv_files.get(dir_path).get('writer').writerow(['?' if not x else x for x in row])
 
     def teardown(self):
         for csv_file in self.__csv_files.values():
@@ -42,26 +42,26 @@ class TaskCsvSummary(object):
 class TaskTSanCsvSummary(TaskCsvSummary):
     """The TSan way of summarising reports"""
 
-    __stack_title_pattern = re.compile('(?P<operation>read|write)\sof\ssize', re.IGNORECASE)
+    __sanitizer_name = 'ThreadSanitizer'
+    __supported_categories = ['data race']
     __expected_funcs_per_report = 2
 
     def process(self, report):
-        if report.sanitizer == 'ThreadSanitizer' and report.category == 'data race':
+        if report.sanitizer == self.__sanitizer_name and report.category in self.__supported_categories:
             row = [report.no]
             func_no = 0
             for stack in report.call_stacks:
-                stack_title_search = self.__stack_title_pattern.search(stack.title)
-                if stack_title_search and len(stack.items) > 0:
-                    item = stack.items[0]
+                if stack.tsan_data_race.get('type') and len(stack.items) > 0:
                     func_no += 1
                     details = [
-                        '?' if not item.src_file_dir_rel_path else item.src_file_dir_rel_path,
-                        '?' if not item.src_file_name else item.src_file_name,
-                        '?' if not item.func_name else item.func_name,
-                        stack_title_search.group('operation').lower()
+                        stack.items[0].src_file_dir_rel_path,
+                        stack.items[0].src_file_name,
+                        stack.items[0].func_name,
+                        stack.tsan_data_race.get('type'),
+                        stack.tsan_data_race.get('bytes')
                     ]
                     # reversing the 2nd function improves the readability of the file
                     row.extend(list(reversed(details) if func_no == 2 else details))
             for i in range(func_no, self.__expected_funcs_per_report):
-                row.extend(['?', '?', '?', '?'])
+                row.extend(['?', '?', '?', '?', '?'])
             self._add_row(report.dir_path, row)

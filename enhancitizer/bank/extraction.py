@@ -11,10 +11,11 @@
 import os
 import re
 
-from utils import FileUtils, NameCounter
+import utils.os
+from utils.utils import NameCounter
 
 class Report(object):
-    """A trade-off between memory consumption and file interactions to store important information"""
+    """A trade-off between memory consumption and file interactions"""
 
     def __init__(self, options, new, sanitizer, category, no, file_path):
         self.__options = options
@@ -29,14 +30,7 @@ class Report(object):
     @property
     def call_stacks(self):
         if not self.__call_stacks:
-            extractor = ReportCallStackExtractor(self.__options)
-            with open(self.file_path, 'r') as report_file:
-                last_line = ''
-                for line in report_file:
-                    extractor.extract(last_line, line)
-                    last_line = line
-                report_file.close()
-            self.__call_stacks = extractor.call_stacks
+            self.__call_stacks = ReportCallStackExtractor(self.__options).extract(self).call_stacks
         return self.__call_stacks
 
     @call_stacks.deleter
@@ -62,11 +56,20 @@ class ReportCallStack(object):
     def __init__(self, title):
         self.title = title
         self.items = []
+        self.tsan_data_race = {
+            'type': None, # 'read' | 'write'
+            'bytes': 0
+        }
+        self.tsan_thread_leak = {
+            'thread_name': None
+        }
 
     def __repr__(self):
         return 'ReportCallStack { ' + \
-            'title: "' + repr(self.title) + '", ' + \
-            'items: ' + repr(self.items) + ' }'
+            'title: ' + repr(self.title) + ', ' + \
+            'items: ' + repr(self.items) + ', ' + \
+            'tsan_data_race: ' + repr(self.tsan_data_race) + ', ' + \
+            'tsan_thread_leak: ' + repr(self.tsan_thread_leak) + ' }'
 
 class ReportCallStackItem(object):
     """A specific function call on a call stack"""
@@ -112,7 +115,7 @@ class ReportExtractor(object):
         self.__report_file = None
 
     def _extract_start(self, report):
-        FileUtils.create_folders(report.file_path)
+        utils.os.makedirs(os.path.dirname(report.file_path))
         self.__report_file = open(report.file_path, 'w')
 
     def _extract_continue(self, line):
@@ -193,29 +196,56 @@ class ReportCallStackExtractor(object):
         '(?:\<null\>|(?P<func_name>[a-z\d_]+))\s' +
         '(?:\<null\>|(?P<src_file_path>[a-z\d/\-\.]+):(?P<line_num>\d+):(?P<char_pos>\d+))',
         re.IGNORECASE)
+    __tsan_data_race_title_pattern = re.compile(
+        '^(?:previous\s)?(?:atomic\s)?' +
+        '(?P<type>read|write)\sof\ssize\s(?P<bytes>\d+)\s' +
+        'at\s0x[\da-f]+\sby\s', re.IGNORECASE)
+    __tsan_thread_leak_title_pattern = re.compile('^thread\s(?P<name>.+)\s\(tid=\d+', re.IGNORECASE)
 
     def __init__(self, options):
-        self.__options = options
-        self.__current_call_stack = None
         self.call_stacks = []
+        self.__options = options
+        self.__add_context = {
+            'ThreadSanitizer': self.__add_tsan_context
+        }
 
-    def extract(self, last_line, line):
-        stack_item_search = self.__stack_item_pattern.search(line)
-        if self.__current_call_stack:
-            if not self.__add_item_from_search(stack_item_search):
-                self.call_stacks.append(self.__current_call_stack)
-                self.__current_call_stack = None
-        elif stack_item_search:
-            self.__current_call_stack = ReportCallStack(last_line.strip())
-            self.__add_item_from_search(stack_item_search)
+    def extract(self, report):
+        with open(report.file_path, 'r') as report_file:
+            add_context = self.__add_context.get(report.sanitizer)
+            stack = None
+            last_line = ''
+            for line in report_file:
+                item_search = self.__stack_item_pattern.search(line)
+                if stack:
+                    if not self.__add_item_from_search(stack, item_search):
+                        if add_context:
+                            add_context(stack)
+                        self.call_stacks.append(stack)
+                        stack = None
+                elif item_search:
+                    stack = ReportCallStack(last_line.strip())
+                    self.__add_item_from_search(stack, item_search)
+                last_line = line
+            report_file.close()
+        return self
 
-    def __add_item_from_search(self, stack_item_search):
-        if not self.__current_call_stack or not stack_item_search:
+    def __add_item_from_search(self, stack, search):
+        if not stack or not search:
             return False
-        self.__current_call_stack.items.append(ReportCallStackItem(
+        stack.items.append(ReportCallStackItem(
             self.__options,
-            stack_item_search.group('func_name'),
-            stack_item_search.group('src_file_path'),
-            stack_item_search.group('line_num'),
-            stack_item_search.group('char_pos')))
+            search.group('func_name'),
+            search.group('src_file_path'),
+            search.group('line_num'),
+            search.group('char_pos')))
         return True
+
+    def __add_tsan_context(self, stack):
+        search = self.__tsan_data_race_title_pattern.search(stack.title)
+        if search:
+            stack.tsan_data_race['type'] = search.group('type').lower()
+            stack.tsan_data_race['bytes'] = int(search.group('bytes'))
+            return
+        search = self.__tsan_thread_leak_title_pattern.search(stack.title)
+        if search:
+            stack.tsan_thread_leak['thread_name'] = search.group('name')
