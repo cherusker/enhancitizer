@@ -41,13 +41,13 @@ class Report(object):
         return self.category + ' #' + str(self.no) + ' (' + self.sanitizer + ')'
 
     def __repr__(self):
-        return 'MetaReport { ' + \
+        return 'Report { ' + \
             'new: ' + repr(self.new) + ', ' + \
             'sanitizer: ' + repr(self.sanitizer) + ', ' + \
             'category: ' + repr(self.category) + ', ' + \
             'no: ' + repr(self.no) + ', ' + \
             'dir_path: ' + repr(self.dir_path) + ', ' + \
-            'file_path: ' + repr(self.file_path) + \
+            'file_path: ' + repr(self.file_path) + ', ' + \
             'call_stacks: ' + repr(self.call_stacks) + '" }'
 
 class ReportCallStack(object):
@@ -85,11 +85,11 @@ class ReportCallStackItem(object):
 
     def __repr__(self):
         return 'ReportCallStackItem { ' + \
-            'func_name: "' + repr(self.func_name) + '", ' + \
-            'src_file_path: "' + repr(self.src_file_path) + '", ' + \
-            'src_file_rel_path: "' + repr(self.src_file_rel_path) + '", ' + \
-            'src_file_name: "' + repr(self.src_file_name) + '", ' + \
-            'src_file_dir_rel_path: "' + repr(self.src_file_dir_rel_path) + '", ' + \
+            'func_name: ' + repr(self.func_name) + ', ' + \
+            'src_file_path: ' + repr(self.src_file_path) + ', ' + \
+            'src_file_rel_path: ' + repr(self.src_file_rel_path) + ', ' + \
+            'src_file_name: ' + repr(self.src_file_name) + ', ' + \
+            'src_file_dir_rel_path: ' + repr(self.src_file_dir_rel_path) + ', ' + \
             'line_num: ' + repr(self.line_num) + ', ' + \
             'char_pos: ' + repr(self.char_pos) + ' }'
 
@@ -104,8 +104,7 @@ class ReportCallStackItem(object):
 class ReportExtractor(object):
     """Base extractor class; has to be inherited in order to make sense"""
 
-    __file_name_length = 5 # zero padding
-    __report_file_name_pattern = re.compile('^(?P<no>\d{' + str(__file_name_length) + '})\.report$', re.IGNORECASE)
+    __report_file_name_pattern = re.compile('^(?P<no>\d{5})\.report$', re.IGNORECASE)
 
     def __init__(self, options, reports_dir_path):
         self.__options = options
@@ -132,8 +131,7 @@ class ReportExtractor(object):
         return os.path.join(self.__reports_dir_path, category.lower().replace(' ', '-'))
 
     def __get_report_file_path(self, category, no):
-        return os.path.join(
-            self.__get_category_dir_path(category), str(no).zfill(self.__file_name_length) + '.report')
+        return utils.os.report_file_path(self.__get_category_dir_path(category), no)
 
     def _make_and_add_report(self, new, sanitizer, category, no=None):
         if no == None:
@@ -194,7 +192,8 @@ class ReportCallStackExtractor(object):
     __stack_item_pattern = re.compile(
         '^\s{4}\#\d+\s' +
         '(?:\<null\>|(?P<func_name>[a-z\d_]+))\s' +
-        '(?:\<null\>|(?P<src_file_path>[a-z\d/\-\.]+):(?P<line_num>\d+):(?P<char_pos>\d+))',
+        # mind: there are certain odd cases where we get src_file_path and a line_num but no char_pos ...
+        '(?:\<null\>|(?P<src_file_path>[a-z\d/\-\.]+):(?P<line_num>\d+)(?::(?P<char_pos>\d+))?)',
         re.IGNORECASE)
     __tsan_data_race_title_pattern = re.compile(
         '^(?:previous\s)?(?:atomic\s)?' +
@@ -206,12 +205,15 @@ class ReportCallStackExtractor(object):
         self.call_stacks = []
         self.__options = options
         self.__add_context = {
-            'ThreadSanitizer': self.__add_tsan_context
+            'ThreadSanitizer': {
+                'data race' : self.__add_tsan_data_race_context,
+                'thread leak': self.__add_tsan_thread_leak_context
+            }
         }
 
     def extract(self, report):
         with open(report.file_path, 'r') as report_file:
-            add_context = self.__add_context.get(report.sanitizer)
+            add_context = self.__add_context.get(report.sanitizer, {}).get(report.category)
             stack = None
             last_line = ''
             for line in report_file:
@@ -240,12 +242,13 @@ class ReportCallStackExtractor(object):
             search.group('char_pos')))
         return True
 
-    def __add_tsan_context(self, stack):
+    def __add_tsan_data_race_context(self, stack):
         search = self.__tsan_data_race_title_pattern.search(stack.title)
         if search:
             stack.tsan_data_race['type'] = search.group('type').lower()
             stack.tsan_data_race['bytes'] = int(search.group('bytes'))
-            return
+
+    def __add_tsan_thread_leak_context(self, stack):
         search = self.__tsan_thread_leak_title_pattern.search(stack.title)
         if search:
             stack.tsan_thread_leak['thread_name'] = search.group('name')

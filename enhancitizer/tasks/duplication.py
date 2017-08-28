@@ -10,7 +10,7 @@
 
 import re
 
-class TaskEliminateDuplicates(object):
+class TaskEliminateDuplicateReports(object):
 
     description = 'Eliminating duplicate reports ...'
 
@@ -32,12 +32,12 @@ class TaskEliminateDuplicates(object):
 
     def process(self, report):
         if not self.__fragments_funcs.get(report.sanitizer, {}).get(report.category):
-            self.__bailout(report.sanitizer, report.category, report.no)
+            self.__bailout('unable to analyse', report)
         identifier = ':'.join(
             str('?' if not x else x).lower()
             for x in self.__fragments_funcs.get(report.sanitizer).get(report.category)(report))
         if not identifier:
-            self.__bailout(report.sanitizer, report.category, report.no)
+            self.__bailout('unable to extract an identifier of', report)
         if identifier in self.__identifiers:
             print('  removing ' + str(report))
             self.__duplicate_reports.append(report)
@@ -48,8 +48,8 @@ class TaskEliminateDuplicates(object):
         for report in self.__duplicate_reports:
             self.__bank.remove_report(report)
 
-    def __bailout(self, sanitizer, category, no):
-        print('  error: unable to analyse ' + category + ' #' + str(no) + ' (' + sanitizer + ')')
+    def __bailout(self, message, report):
+        print('  error: ' + message + ' ' + str(report))
         exit()
 
     def __tsan_data_race_fragments(self, report):

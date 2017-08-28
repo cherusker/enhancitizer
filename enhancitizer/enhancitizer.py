@@ -12,9 +12,10 @@ import time
 
 from bank.bank import ReportsBank
 from tasks.blacklist import TaskCreateTSanBlacklist
+from tasks.compaction import TaskCompactReports
 from tasks.context import TaskAddTSanContext
 from tasks.csv import TaskTSanCsvSummary
-from tasks.duplication import TaskEliminateDuplicates
+from tasks.duplication import TaskEliminateDuplicateReports
 from tasks.skeleton import TaskBuildSkeleton
 from tasks.stuff import TaskSummary
 from utils.utils import StopWatch
@@ -46,7 +47,8 @@ class Enhancitizer(object):
         bank.extract_reports()
         print('  execution time: ' + str(watch) + '\n')
         tasks = [
-            TaskEliminateDuplicates(bank),
+            TaskEliminateDuplicateReports(bank),
+            TaskCompactReports(),
             TaskCreateTSanBlacklist(self.__options),
             TaskTSanCsvSummary(),
             TaskBuildSkeleton(self.__options),

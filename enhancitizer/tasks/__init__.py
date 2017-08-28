@@ -10,6 +10,7 @@
 
 __all__ = [
     'blacklist',
+    'compaction',
     'context',
     'csv',
     'duplication',

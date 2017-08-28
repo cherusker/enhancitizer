@@ -75,7 +75,7 @@ class Options(object):
 
     def __show_usage(self):
         """Show usage message and exit"""
-        with open(self.usage_file_path) as usage:
+        with open(self.__usage_file_path) as usage:
             print('\n' + usage.read())
             usage.close()
         exit()

@@ -25,6 +25,9 @@ def makedirs(dir_path, empty=False):
             if exception.errno != errno.EEXIST:
                 raise
 
+def report_file_path(dir_path, report_no):
+    return os.path.join(dir_path, str(report_no).zfill(5) + '.report')
+
 class SourceCodeLine(object):
     """Represents one line of a source code file"""
 
