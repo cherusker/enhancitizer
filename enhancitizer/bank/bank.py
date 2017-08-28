@@ -19,7 +19,6 @@ class ReportsBank(object):
     __reports_dir_name = 'reports'
 
     def __init__(self, options):
-        self.__options = options
         self.__reports = []
         self.__iter_pos = 0
         self.__reports_dir_path = os.path.join(options.output_root_path, self.__reports_dir_name)
@@ -45,11 +44,12 @@ class ReportsBank(object):
         """Collect existing reports from the output folder"""
         for extractor in self.__extractors:
             extractor.collect()
+            self.__reports.extend(extractor.reports)
 
-    def extract_reports(self):
+    def extract_reports(self, logfile_path):
         """Extract new reports from the logfile"""
         # we really only want one walk through large logfiles
-        with open(self.__options.logfile_path, 'r') as logfile:
+        with open(logfile_path, 'r') as logfile:
             last_line = ''
             for line in logfile:
                 for extractor in self.__extractors:

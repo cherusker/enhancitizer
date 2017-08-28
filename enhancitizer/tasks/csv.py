@@ -45,9 +45,19 @@ class TaskTSanCsvSummary(TaskCsvSummary):
     __sanitizer_name = 'ThreadSanitizer'
     __supported_categories = ['data race']
     __expected_funcs_per_report = 2
+    __field_names = ['folder', 'file', 'function', 'op', 'size']
+
+    def setup(self):
+        super(TaskTSanCsvSummary, self).setup()
+        self.__header_row = ['id']
+        self.__header_row.extend(self.__field_names)
+        self.__header_row.extend(list(reversed(self.__field_names)))
 
     def process(self, report):
         if report.sanitizer == self.__sanitizer_name and report.category in self.__supported_categories:
+            if self.__header_row:
+                self._add_row(report.dir_path, self.__header_row)
+                self.__header_row = None
             row = [report.no]
             func_no = 0
             for stack in report.call_stacks:

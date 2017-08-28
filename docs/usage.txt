@@ -1,4 +1,4 @@
-Usage: enhancitizer [OPTIONS] [PROJECT-ROOT] [LOGFILE] [OUTPUT-FOLDER]
+Usage: enhancitizer [Options] [PROJECT-ROOT] [OUTPUT-FOLDER] [LOGFILES] ...
 
   Enhance the reports of various Clang sanitizers.
 
@@ -8,10 +8,16 @@ Arguments:
                  the project that has been analysed with Clang. It is
                  important, that this argument matches the file paths that can
                  be found in Clang's stack traces.
-  LOGFILE        Location of the log file that contains stack traces of Clang.
-  OUTPUT-FOLDER  This is where all the magic goes. If omitted, it will be set
-                 to "enhancitizer".
+
+  OUTPUT-FOLDER  This is where all the magic goes.
+
+  LOGFILES       Locations of log files that contain stack traces of Clang
+                 sanitizers. These paths can either point to files or to
+                 directories. If an argument points to a directory, all
+                 containing files and directories will be treated as if they
+                 were arguments themselves.
 
 Options:
 
+     --clean     Start with a clean OUTPUT-FOLDER; empty it if necessary.
   -v --version   Print the version information.

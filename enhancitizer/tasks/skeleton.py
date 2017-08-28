@@ -37,20 +37,20 @@ class TaskBuildSkeleton(object):
         if self.__add_funcs.get(report.sanitizer, {}).get(report.category):
             self.__add_funcs.get(report.sanitizer).get(report.category)(report)
 
-    def __add(self, report, stack_item):
-        if stack_item.complete:
-            file_rel_path = stack_item.src_file_rel_path
-            line_num = stack_item.line_num
+    def __add(self, report, stack_frame_id, stack_frame):
+        if stack_frame.complete:
+            file_rel_path = stack_frame.src_file_rel_path
+            line_num = stack_frame.line_num
             if not file_rel_path in self.__skeletons:
-                self.__skeletons.update({ file_rel_path: Skeleton(stack_item.src_file_path) })
+                self.__skeletons.update({ file_rel_path: Skeleton(stack_frame.src_file_path) })
             self.__skeletons.get(file_rel_path).mark(
-                stack_item.line_num, stack_item.char_pos, str(report))
+                stack_frame.line_num, stack_frame.char_pos, str(report) + ' - frame #' + str(stack_frame_id))
 
     def __add_tsan_data_race(self, report):
         for stack in report.call_stacks:
             if stack.tsan_data_race.get('type'):
                 for i in range(min(len(stack.items), self.__tsan_data_race_max_stack_depth)):
-                    self.__add(report, stack.items[i])
+                    self.__add(report, i, stack.items[i])
 
     def teardown(self):
         for src_file_path, skeleton in self.__skeletons.items():

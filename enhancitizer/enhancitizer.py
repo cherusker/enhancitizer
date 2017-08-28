@@ -35,16 +35,19 @@ class Enhancitizer(object):
         # TODO: add a nice welcome message
         print('\nSettings:\n' + \
               '  project root:  ' + self.__options.project_root_path + '\n' + \
-              '  logfile:       ' + self.__options.logfile_path + '\n' + \
-              '  output folder: ' + self.__options.output_root_path + '\n')
+              '  output folder: ' + self.__options.output_root_path + '\n' + \
+              '  logfiles:')
+        for path in self.__options.logfiles_paths:
+            print('    ' + path)
         bank = ReportsBank(self.__options)
-        print('Collecting existing reports ...')
+        print('\nCollecting existing reports ...')
         watch = StopWatch().start()
         bank.collect_reports()
         print('  execution time: ' + str(watch) + '\n\n'
               'Extracting new reports ...')
         watch.start()
-        bank.extract_reports()
+        for path in self.__options.logfiles_paths:
+            bank.extract_reports(path)
         print('  execution time: ' + str(watch) + '\n')
         tasks = [
             TaskEliminateDuplicateReports(bank),

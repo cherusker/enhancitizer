@@ -13,5 +13,5 @@
 from enhancitizer import Enhancitizer
 from utils.options import Options
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     Enhancitizer(Options().collect()).run()

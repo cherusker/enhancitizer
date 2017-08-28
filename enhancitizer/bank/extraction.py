@@ -19,13 +19,27 @@ class Report(object):
 
     def __init__(self, options, new, sanitizer, category, no, file_path):
         self.__options = options
+        self.__dir_path = None # special setter
+        self.__file_path = None # special setter
+        self.__call_stacks = None # lazy initialisation
         self.new = bool(new)
         self.sanitizer = sanitizer
         self.category = category
         self.no = int(no)
-        self.dir_path = os.path.dirname(file_path)
         self.file_path = file_path
-        self.__call_stacks = None # lazy initialisation
+
+    @property
+    def dir_path(self):
+        return self.__dir_path
+
+    @property
+    def file_path(self):
+        return self.__file_path
+
+    @file_path.setter
+    def file_path(self, file_path):
+        self.__file_path = file_path
+        self.__dir_path = None if not file_path else os.path.dirname(file_path)
 
     @property
     def call_stacks(self):
@@ -48,7 +62,7 @@ class Report(object):
             'no: ' + repr(self.no) + ', ' + \
             'dir_path: ' + repr(self.dir_path) + ', ' + \
             'file_path: ' + repr(self.file_path) + ', ' + \
-            'call_stacks: ' + repr(self.call_stacks) + '" }'
+            'call_stacks: ' + repr(self.call_stacks) + ' }'
 
 class ReportCallStack(object):
     """A call stack"""
@@ -71,8 +85,8 @@ class ReportCallStack(object):
             'tsan_data_race: ' + repr(self.tsan_data_race) + ', ' + \
             'tsan_thread_leak: ' + repr(self.tsan_thread_leak) + ' }'
 
-class ReportCallStackItem(object):
-    """A specific function call on a call stack"""
+class ReportCallStackFrame(object):
+    """A specific frame of a call stack"""
 
     def __init__(self, options, func_name, src_file_path, line_num, char_pos):
         self.func_name = func_name
@@ -84,7 +98,7 @@ class ReportCallStackItem(object):
         self.char_pos = None if not char_pos else int(char_pos)
 
     def __repr__(self):
-        return 'ReportCallStackItem { ' + \
+        return 'ReportCallStackFrame { ' + \
             'func_name: ' + repr(self.func_name) + ', ' + \
             'src_file_path: ' + repr(self.src_file_path) + ', ' + \
             'src_file_rel_path: ' + repr(self.src_file_rel_path) + ', ' + \
@@ -108,10 +122,17 @@ class ReportExtractor(object):
 
     def __init__(self, options, reports_dir_path):
         self.__options = options
-        self.reports = []
         self.__counter = NameCounter()
         self.__reports_dir_path = reports_dir_path
         self.__report_file = None
+        self.__reports = []
+
+    @property
+    def reports(self):
+        """Get reports and remove them from the extractor"""
+        r = self.__reports
+        self.__reports = []
+        return r
 
     def _extract_start(self, report):
         utils.os.makedirs(os.path.dirname(report.file_path))
@@ -140,7 +161,7 @@ class ReportExtractor(object):
             self.__counter.set(category, no)
         report = Report(self.__options, new, sanitizer, category, no, self.__get_report_file_path(category, no))
         print('  adding ' + str(report))
-        self.reports.append(report)
+        self.__reports.append(report)
         return report
 
     def _collect_reports(self, sanitizer_name, category):
@@ -234,7 +255,7 @@ class ReportCallStackExtractor(object):
     def __add_item_from_search(self, stack, search):
         if not stack or not search:
             return False
-        stack.items.append(ReportCallStackItem(
+        stack.items.append(ReportCallStackFrame(
             self.__options,
             search.group('func_name'),
             search.group('src_file_path'),

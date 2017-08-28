@@ -15,7 +15,7 @@ from utils.os import SourceCodeLine
 
 class TaskAddTSanContext(object):
 
-    description = "Adding TSan context ..."
+    description = 'Adding TSan context ...'
 
     __sanitizer_name = 'ThreadSanitizer'
     __supported_categories = ['data race']
