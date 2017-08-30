@@ -44,9 +44,9 @@ class NameCounter(object):
         if name in self.data:
             self.data[name] += 1
         else:
-            self.data.update({ name: 1 })
+            self.data[name] = 1
             self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
-        return self.get(name)
+        return self[name]
 
     def get(self, name):
         """Returns the count of name (0 for nonexisting namea)"""
@@ -57,6 +57,6 @@ class NameCounter(object):
         if name in self.data:
             self.data[name] = value
         else:
-            self.data.update({ name: value })
+            self.data[name] = value
             self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
-        return self.get(name)
+        return self.data[name]

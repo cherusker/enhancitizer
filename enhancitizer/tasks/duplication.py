@@ -8,6 +8,8 @@
 #
 # ------------------------------------------------------------------------------
 
+from utils.printer import Printer
+
 class TaskEliminateDuplicateReports(object):
 
     description = 'Eliminating duplicate reports ...'
@@ -17,7 +19,8 @@ class TaskEliminateDuplicateReports(object):
     def __init__(self, bank):
         self.__bank = bank
 
-    def setup(self):
+    def setup(self, options):
+        self.__printer = Printer(options)
         self.__duplicate_reports = []
         self.__identifiers_funcs = {
             'ThreadSanitizer': {
@@ -30,13 +33,13 @@ class TaskEliminateDuplicateReports(object):
 
     def process(self, report):
         if not self.__identifiers_funcs.get(report.sanitizer, {}).get(report.category):
-            self.__bailout('unable to analyse', report)
-        identifiers = self.__identifiers_funcs.get(report.sanitizer).get(report.category)(report)
+            self.__printer.bailout('unable to analyse ' + str(report))
+        identifiers = self.__identifiers_funcs[report.sanitizer][report.category](report)
         if not identifiers:
-            self.__bailout('unable to extract identifiers from', report)
+            self.__printer.bailout('unable to extract identifiers from ' + str(report))
         for identifier in identifiers:
             if identifier in self.__known_identifiers:
-                print('  removing ' + str(report))
+                self.__printer.task_info('removing ' + str(report))
                 self.__duplicate_reports.append(report)
                 return
         self.__known_identifiers.extend(identifiers)
@@ -45,22 +48,21 @@ class TaskEliminateDuplicateReports(object):
         for report in self.__duplicate_reports:
             self.__bank.remove_report(report)
 
-    def __bailout(self, message, report):
-        print('  error: ' + message + ' ' + str(report))
-        exit()
-
     def __tsan_data_race_identifiers(self, report):
         fragments = []
         for stack in report.call_stacks:
-            if stack.tsan_data_race.get('type'):
-                fragment = []
-                fragment.append(stack.tsan_data_race.get('type'))
-                fragment.append(stack.tsan_data_race.get('bytes'))
-                for i in range(min(len(stack.items), self.__tsan_data_race_max_stack_frames)):
-                    fragment.append(stack.items[i].src_file_rel_path)
-                    fragment.append(stack.items[i].func_name)
-                    fragment.append(stack.items[i].line_num)
-                    fragment.append(stack.items[i].char_pos)
+            if 'tsan_data_race_type' in stack.special:
+                fragment = [
+                    stack.special.get('tsan_data_race_type'),
+                    stack.special.get('tsan_data_race_bytes')
+                ]
+                for i in range(min(len(stack.frames), self.__tsan_data_race_max_stack_frames)):
+                    fragment.extend([
+                        stack.frames[i].src_file_rel_path,
+                        stack.frames[i].func_name,
+                        stack.frames[i].line_num,
+                        stack.frames[i].char_pos
+                    ])
                 fragments.append(':'.join(['?' if not f else str(f) for f in fragment]))
         if len(fragments) == 1:
             return fragments
@@ -70,5 +72,5 @@ class TaskEliminateDuplicateReports(object):
 
     def __tsan_thread_leak_identifiers(self, report):
         for stack in report.call_stacks:
-            if stack.tsan_thread_leak.get('thread_name'):
-                return [stack.tsan_thread_leak.get('thread_name')]
+            if stack.special.get('tsan_thread_leak_thread_name'):
+                return [stack.special['tsan_thread_leak_thread_name']]

@@ -13,7 +13,7 @@ import os
 import re
 import shutil
 
-import utils.os
+import utils.files
 
 class Options(object):
 
@@ -33,6 +33,12 @@ class Options(object):
         parser.add_argument('--clean',
                             dest='start_clean',
                             action='store_true')
+        parser.add_argument('--debug',
+                            dest='print_debug',
+                            action='store_true')
+        parser.add_argument('--minimal',
+                            dest='print_minimal',
+                            action='store_true')
         parser.add_argument('-v', '--version',
                             dest='show_version',
                             action='store_true')
@@ -49,6 +55,8 @@ class Options(object):
         self.output_root_path = self.__absolute_path(args.output_root_path)
         self.logfiles_paths = [self.__absolute_path(path) for path in args.logfiles_paths]
         self.start_clean = args.start_clean
+        self.print_debug = args.print_debug
+        self.print_minimal = args.print_minimal
         self.show_version = args.show_version
         if self.show_version:
             # TODO: get the version string from __init__.py
@@ -65,7 +73,7 @@ class Options(object):
         if self.start_clean and os.path.isdir(self.output_root_path):
             shutil.rmtree(self.output_root_path)
         if not os.path.isdir(self.output_root_path):
-            utils.os.makedirs(self.output_root_path)
+            utils.files.makedirs(self.output_root_path)
         paths = self.logfiles_paths
         self.logfiles_paths = []
         while len(paths) > 0:

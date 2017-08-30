@@ -10,13 +10,15 @@
 
 import os
 
-import utils.os
+import utils.files
+from utils.printer import Printer
 
 class TaskCompactReports(object):
 
     description = 'Compacting reports ...'
 
-    def setup(self):
+    def setup(self, options):
+        self.__printer = Printer(options)
         # sanitizer.category.count
         self.__data = {}
 
@@ -24,16 +26,16 @@ class TaskCompactReports(object):
         sanitizer = report.sanitizer
         category = report.category
         orig_no = report.no
-        if not self.__data.get(sanitizer):
-            self.__data.update({ sanitizer: {} })
-        if not self.__data.get(sanitizer).get(category):
-            self.__data.get(sanitizer).update({ category: 0 })
-        self.__data.get(sanitizer)[category] += 1
-        new_no = self.__data.get(sanitizer).get(category)
+        if not sanitizer in self.__data:
+            self.__data[sanitizer] = {}
+        if not category in self.__data[sanitizer]:
+            self.__data[sanitizer][category] = 0
+        self.__data[sanitizer][category] += 1
+        new_no = self.__data[sanitizer][category]
         if new_no != orig_no:
             orig_report_str = str(report)
-            new_file_path = utils.os.report_file_path(os.path.dirname(report.file_path), new_no)
+            new_file_path = utils.files.report_file_path(os.path.dirname(report.file_path), new_no)
             os.rename(report.file_path, new_file_path)
             report.no = new_no
             report.file_path = new_file_path
-            print('  renaming: ' + orig_report_str + ' -> ' + str(report))
+            self.__printer.task_info('renaming: ' + orig_report_str + ' -> ' + str(report))

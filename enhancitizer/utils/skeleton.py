@@ -8,6 +8,7 @@
 #
 # ------------------------------------------------------------------------------
 
+from collections import OrderedDict
 import re
 
 class Skeleton(object):
@@ -33,12 +34,12 @@ class Skeleton(object):
         self.__exported_line_nums.extend([i
                   for i in range(line_num - self.__additional_lines_count, line_num + self.__additional_lines_count + 1)
                   if i >= 0 and not i in self.__exported_line_nums])
-        if not self.__data.get(line_num):
-            self.__data.update({ line_num: {} })
-        if not self.__data.get(line_num).get(char_pos):
-            self.__data.get(line_num).update({ char_pos: [] })
-        if not text in self.__data.get(line_num).get(char_pos):
-            self.__data.get(line_num).get(char_pos).append(text)
+        if not line_num in self.__data:
+            self.__data[line_num] = OrderedDict()
+        if not char_pos in self.__data[line_num]:
+            self.__data[line_num][char_pos] = []
+        if not text in self.__data[line_num][char_pos]:
+            self.__data[line_num][char_pos].append(text)
             
     def __line_indicator(self, padding, text=''):
         """Returns a string that has text followed by ':' and padded with whitespaces"""

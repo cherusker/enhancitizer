@@ -20,4 +20,6 @@ Arguments:
 Options:
 
      --clean     Start with a clean OUTPUT-FOLDER; empty it if necessary.
+     --debug     Show debugging information.
+     --minimal   Hide detailed information of the tasks.
   -v --version   Print the version information.

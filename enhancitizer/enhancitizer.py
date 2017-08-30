@@ -11,6 +11,7 @@
 import time
 
 from bank.bank import ReportsBank
+from tasks.analysing import TaskAnalyseReports
 from tasks.blacklist import TaskCreateTSanBlacklist
 from tasks.compaction import TaskCompactReports
 from tasks.context import TaskAddTSanContext
@@ -18,12 +19,14 @@ from tasks.csv import TaskTSanCsvSummary
 from tasks.duplication import TaskEliminateDuplicateReports
 from tasks.skeleton import TaskBuildSkeleton
 from tasks.stuff import TaskSummary
+from utils.printer import Printer
 from utils.utils import StopWatch
 
 class Enhancitizer(object):
     
     def __init__(self, options):
         self.__options = options
+        self.__printer = Printer(options)
         self.__tasks = []
 
     def add_tasks(self, task):
@@ -32,44 +35,42 @@ class Enhancitizer(object):
 
     def run(self):
         """Run the enhancitizer"""
-        # TODO: add a nice welcome message
-        print('\nSettings:\n' + \
-              '  project root:  ' + self.__options.project_root_path + '\n' + \
-              '  output folder: ' + self.__options.output_root_path + '\n' + \
-              '  logfiles:')
-        for path in self.__options.logfiles_paths:
-            print('    ' + path)
         bank = ReportsBank(self.__options)
-        print('\nCollecting existing reports ...')
+        self.__printer.welcome() \
+                      .nl() \
+                      .settings() \
+                      .nl() \
+                      .task_description('Collecting existing reports ...')
         watch = StopWatch().start()
         bank.collect_reports()
-        print('  execution time: ' + str(watch) + '\n\n'
-              'Extracting new reports ...')
+        self.__printer.task_debug_info('execution time: ' + str(watch)) \
+                      .nl() \
+                      .task_description('Extracting new reports ...')
         watch.start()
         for path in self.__options.logfiles_paths:
             bank.extract_reports(path)
-        print('  execution time: ' + str(watch) + '\n')
+        self.__printer.task_debug_info('execution time: ' + str(watch)).nl()
         tasks = [
-            TaskEliminateDuplicateReports(bank),
-            TaskCompactReports(),
-            TaskCreateTSanBlacklist(self.__options),
+            TaskEliminateDuplicateReports(bank), # should be the first thing
+            TaskCompactReports(), # after the elimination, before "real" tasks
+            TaskAnalyseReports(), # after the elimination, before "real" tasks
+            TaskCreateTSanBlacklist(),
+            TaskBuildSkeleton(),
             TaskTSanCsvSummary(),
-            TaskBuildSkeleton(self.__options),
-            # add the context rather late in the game to speed up the parsing of the previous tasks
-            TaskAddTSanContext(),
-            TaskSummary()
+            TaskAddTSanContext(), # should run late to speed up stack parsing of the previous tasks
+            TaskSummary() # should be the last thing
         ]
         tasks.extend(self.__tasks)
         for task in tasks:
             watch.start()
             if hasattr(task, 'description'):
-                print(task.description)
+                self.__printer.task_description(task.description)
             if hasattr(task, 'setup'):
-                task.setup()
+                task.setup(self.__options)
             if hasattr(task, 'process'):
                 for report in bank:
                     task.process(report)
             if hasattr(task, 'teardown'):
                 task.teardown()
             if hasattr(task, 'description'):
-                print('  execution time: ' + str(watch) + '\n')
+                self.__printer.task_debug_info('execution time: ' + str(watch)).nl()

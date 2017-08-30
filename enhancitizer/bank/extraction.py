@@ -7,11 +7,42 @@
 #   See LICENSE in the project root for license information.
 #
 # ------------------------------------------------------------------------------
+#
+# Report:
+#   - bool              new
+#   - string            sanitizer
+#   - string            category
+#   - int               no
+#   - string            file_path:   get + set only
+#   - string            dir_path:    get only
+#   - ReportCallStack[] call_stacks: get + delete only
+#   - dictionary        special:
+#                         - string tsan_data_race_global_location
+#
+# ReportCallStack:
+#   - string                 title
+#   - ReportCallStackFrame[] frames
+#   - dictionary             special:
+#                              - int    tsan_data_race_bytes
+#                              - string tsan_data_race_type: 'read' | 'write'
+#                              - string tsan_thread_leak_thread_name
+#
+# ReportCallStackFrame:
+#   - string func_name
+#   - string src_file_path
+#   - string src_file_rel_path
+#   - string src_file_name
+#   - string src_file_dir_rel_path
+#   - int    line num
+#   - int    char_pos
+#
+# ------------------------------------------------------------------------------
 
 import os
 import re
 
-import utils.os
+import utils.files
+from utils.printer import Printer
 from utils.utils import NameCounter
 
 class Report(object):
@@ -27,6 +58,7 @@ class Report(object):
         self.category = category
         self.no = int(no)
         self.file_path = file_path
+        self.special = {}
 
     @property
     def dir_path(self):
@@ -62,28 +94,22 @@ class Report(object):
             'no: ' + repr(self.no) + ', ' + \
             'dir_path: ' + repr(self.dir_path) + ', ' + \
             'file_path: ' + repr(self.file_path) + ', ' + \
-            'call_stacks: ' + repr(self.call_stacks) + ' }'
+            'call_stacks: ' + repr(self.call_stacks) + ', ' + \
+            'special: ' + repr(self.special) + ' }'
 
 class ReportCallStack(object):
     """A call stack"""
 
     def __init__(self, title):
         self.title = title
-        self.items = []
-        self.tsan_data_race = {
-            'type': None, # 'read' | 'write'
-            'bytes': 0
-        }
-        self.tsan_thread_leak = {
-            'thread_name': None
-        }
+        self.frames = []
+        self.special = {}
 
     def __repr__(self):
         return 'ReportCallStack { ' + \
             'title: ' + repr(self.title) + ', ' + \
-            'items: ' + repr(self.items) + ', ' + \
-            'tsan_data_race: ' + repr(self.tsan_data_race) + ', ' + \
-            'tsan_thread_leak: ' + repr(self.tsan_thread_leak) + ' }'
+            'frames: ' + repr(self.frames) + ', ' + \
+            'special: ' + repr(self.special) + ' }'
 
 class ReportCallStackFrame(object):
     """A specific frame of a call stack"""
@@ -122,6 +148,7 @@ class ReportExtractor(object):
 
     def __init__(self, options, reports_dir_path):
         self.__options = options
+        self.__printer = Printer(options)
         self.__counter = NameCounter()
         self.__reports_dir_path = reports_dir_path
         self.__report_file = None
@@ -135,7 +162,7 @@ class ReportExtractor(object):
         return r
 
     def _extract_start(self, report):
-        utils.os.makedirs(os.path.dirname(report.file_path))
+        utils.files.makedirs(os.path.dirname(report.file_path))
         self.__report_file = open(report.file_path, 'w')
 
     def _extract_continue(self, line):
@@ -152,7 +179,7 @@ class ReportExtractor(object):
         return os.path.join(self.__reports_dir_path, category.lower().replace(' ', '-'))
 
     def __get_report_file_path(self, category, no):
-        return utils.os.report_file_path(self.__get_category_dir_path(category), no)
+        return utils.files.report_file_path(self.__get_category_dir_path(category), no)
 
     def _make_and_add_report(self, new, sanitizer, category, no=None):
         if no == None:
@@ -160,7 +187,7 @@ class ReportExtractor(object):
         elif self.__counter.get(category) < no:
             self.__counter.set(category, no)
         report = Report(self.__options, new, sanitizer, category, no, self.__get_report_file_path(category, no))
-        print('  adding ' + str(report))
+        self.__printer.task_info('adding ' + str(report))
         self.__reports.append(report)
         return report
 
@@ -180,12 +207,13 @@ class TSanReportExtractor(ReportExtractor):
     __sanitizer_dir_name = 'tsan'
     __categories = ['data race', 'thread leak']
 
-    __start_line_pattern = re.compile('^warning:\sthreadsanitizer:\s(?P<category>[a-z\s]+)\s\(', re.IGNORECASE)
+    __start_line_pattern = re.compile('^warning: threadsanitizer: (?P<category>[a-z ]+) \(', re.IGNORECASE)
     __start_last_line_pattern = re.compile('^={18}$', re.MULTILINE)
     __end_line_pattern = __start_last_line_pattern
 
     def __init__(self, options, reports_dir_path):
         super(TSanReportExtractor, self).__init__(options, os.path.join(reports_dir_path, self.__sanitizer_dir_name))
+        self.__printer = Printer(options)
 
     def collect(self):
         for category in self.__categories:
@@ -200,17 +228,15 @@ class TSanReportExtractor(ReportExtractor):
             if start_line_search and self.__start_last_line_pattern.search(last_line):
                 category = start_line_search.group('category').lower()
                 if not category in self.__categories:
-                    print('  unkown category "' + category + '"')
-                    exit()
+                    self.__printer.bailout('unkown category ' + repr(category))
                 else:
-                    report = self._make_and_add_report(True, 'ThreadSanitizer', category)
-                    self._extract_start(report)
+                    self._extract_start(self._make_and_add_report(True, 'ThreadSanitizer', category))
                     self._extract_continue(last_line + line)
 
 class ReportCallStackExtractor(object):
     """Extract call stackss"""
 
-    __stack_item_pattern = re.compile(
+    __stack_frame_pattern = re.compile(
         '^\s{4}\#\d+\s' +
         '(?:\<null\>|(?P<func_name>[a-z\d_]+))\s' +
         # mind: there are certain odd cases where we get src_file_path and a line_num but no char_pos ...
@@ -238,24 +264,24 @@ class ReportCallStackExtractor(object):
             stack = None
             last_line = ''
             for line in report_file:
-                item_search = self.__stack_item_pattern.search(line)
+                frame_search = self.__stack_frame_pattern.search(line)
                 if stack:
-                    if not self.__add_item_from_search(stack, item_search):
+                    if not self.__add_frame_from_search(stack, frame_search):
                         if add_context:
                             add_context(stack)
                         self.call_stacks.append(stack)
                         stack = None
-                elif item_search:
+                elif frame_search:
                     stack = ReportCallStack(last_line.strip())
-                    self.__add_item_from_search(stack, item_search)
+                    self.__add_frame_from_search(stack, frame_search)
                 last_line = line
             report_file.close()
         return self
 
-    def __add_item_from_search(self, stack, search):
+    def __add_frame_from_search(self, stack, search):
         if not stack or not search:
             return False
-        stack.items.append(ReportCallStackFrame(
+        stack.frames.append(ReportCallStackFrame(
             self.__options,
             search.group('func_name'),
             search.group('src_file_path'),
@@ -266,10 +292,10 @@ class ReportCallStackExtractor(object):
     def __add_tsan_data_race_context(self, stack):
         search = self.__tsan_data_race_title_pattern.search(stack.title)
         if search:
-            stack.tsan_data_race['type'] = search.group('type').lower()
-            stack.tsan_data_race['bytes'] = int(search.group('bytes'))
+            stack.special['tsan_data_race_type'] = search.group('type').lower()
+            stack.special['tsan_data_race_bytes'] = int(search.group('bytes').lower())
 
     def __add_tsan_thread_leak_context(self, stack):
         search = self.__tsan_thread_leak_title_pattern.search(stack.title)
         if search:
-            stack.tsan_thread_leak['thread_name'] = search.group('name')
+            stack.special['tsan_thread_leak_thread_name'] = search.group('name')
