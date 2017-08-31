@@ -16,14 +16,11 @@ from .extraction import TSanReportExtractor
 class ReportsBank(object):
     """Extracts reports from a log file and stores objects of ReportsBankReport"""
 
-    __reports_dir_name = 'reports'
-
     def __init__(self, options):
         self.__reports = []
         self.__iter_pos = 0
-        self.__reports_dir_path = os.path.join(options.output_root_path, self.__reports_dir_name)
         self.__extractors = [
-            TSanReportExtractor(options, self.__reports_dir_path)
+            TSanReportExtractor(options)
         ]
 
     def __iter__(self):

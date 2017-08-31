@@ -32,31 +32,3 @@ class StopWatch(object):
             t *= 1000
             u += 1
         return str(round(t)) + ' ' + self.__units[u]
-
-class NameCounter(object):
-    """Counts values with certain names and keeps an alphabetical order"""
-    
-    def __init__(self):
-        self.data = OrderedDict()
-
-    def inc(self, name):
-        """Increases the counter of name and returns the increased value"""
-        if name in self.data:
-            self.data[name] += 1
-        else:
-            self.data[name] = 1
-            self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
-        return self[name]
-
-    def get(self, name):
-        """Returns the count of name (0 for nonexisting namea)"""
-        return self.data.get(name, 0)
-
-    def set(self, name, value):
-        """Sets the counter of name and returns the value"""
-        if name in self.data:
-            self.data[name] = value
-        else:
-            self.data[name] = value
-            self.data = OrderedDict(sorted(self.data.items(), key=lambda t: t[0]))
-        return self.data[name]

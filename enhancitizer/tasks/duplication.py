@@ -23,7 +23,7 @@ class TaskEliminateDuplicateReports(object):
         self.__printer = Printer(options)
         self.__duplicate_reports = []
         self.__identifiers_funcs = {
-            'ThreadSanitizer': {
+            'tsan': {
                 'data race': self.__tsan_data_race_identifiers,
                 'thread leak': self.__tsan_thread_leak_identifiers
             }
@@ -32,9 +32,9 @@ class TaskEliminateDuplicateReports(object):
         self.__known_identifiers = []
 
     def process(self, report):
-        if not self.__identifiers_funcs.get(report.sanitizer, {}).get(report.category):
+        if not self.__identifiers_funcs.get(report.sanitizer.name_short, {}).get(report.category_name):
             self.__printer.bailout('unable to analyse ' + str(report))
-        identifiers = self.__identifiers_funcs[report.sanitizer][report.category](report)
+        identifiers = self.__identifiers_funcs[report.sanitizer.name_short][report.category_name](report)
         if not identifiers:
             self.__printer.bailout('unable to extract identifiers from ' + str(report))
         for identifier in identifiers:

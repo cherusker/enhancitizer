@@ -23,14 +23,14 @@ class TaskAnalyseReports(object):
     def setup(self, options):
         self.__printer = Printer(options)
         self.__analysing_funcs = {
-            'ThreadSanitizer': {
+            'tsan': {
                 'data race': self.__tsan_analyse_data_race
             }
         }
 
     def process(self, report):
-        if self.__analysing_funcs.get(report.sanitizer, {}).get(report.category):
-            self.__analysing_funcs[report.sanitizer][report.category](report)
+        if self.__analysing_funcs.get(report.sanitizer.name_short, {}).get(report.category_name):
+            self.__analysing_funcs[report.sanitizer.name_short][report.category_name](report)
 
     def __tsan_analyse_data_race(self, report):
         with open(report.file_path, 'r') as report_file:

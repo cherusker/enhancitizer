@@ -17,17 +17,17 @@ class TaskSummary(object):
     
     def setup(self, options):
         self.__printer = Printer(options)
-        # sanitizer.category.(new|old)
+        # sanitizer_name.category_name.(new|old)
         self.__data = OrderedDict()
 
     def process(self, report):
-        sanitizer_name = report.sanitizer
-        category_name = report.category
+        sanitizer_name = report.sanitizer.name
+        category_name = report.category_name
         if not sanitizer_name in self.__data:
             self.__data[sanitizer_name] = OrderedDict()
         if not category_name in self.__data[sanitizer_name]:
             self.__data[sanitizer_name][category_name] = { 'new': 0, 'old': 0 }
-        self.__data[sanitizer_name][category_name]['new' if report.new else 'old'] += 1
+        self.__data[sanitizer_name][category_name]['new' if report.is_new else 'old'] += 1
 
     def teardown(self):
         self.__printer.task_description('Summary:')

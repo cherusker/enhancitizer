@@ -12,72 +12,87 @@ import csv
 import os
 import re
 
+import utils.files
 from utils.printer import Printer
 
-class TaskCsvSummary(object):
+class TaskCreateCsvSummaries(object):
     """Summarise the reports and collect the info in CSV files"""
 
     description = 'Summarising the reports ...'
 
-    __csv_file_name = 'summary.csv'
+    __csv_base_dir_name = 'summaries'
+    __csv_file_ending = '.csv'
     __csv_delimiter = ','
 
-    def _setup(self, options):
-        self.__printer = Printer(options)
-        self.__csv_files = {}
-
-    def _add_row(self, dir_path, row):
-        if not dir_path in self.__csv_files:
-            csv_file_path = os.path.join(dir_path, self.__csv_file_name)
-            csv_file = open(csv_file_path, 'w')
-            if csv_file:
-                self.__printer.task_info('creating ' + csv_file_path)
-                self.__csv_files[dir_path] = {
-                    'file': csv_file,
-                    'writer': csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
-                }
-        self.__csv_files[dir_path]['writer'].writerow([str(cell) for cell in row])
-
-    def teardown(self):
-        for csv_file in self.__csv_files.values():
-            csv_file['file'].close()
-
-class TaskTSanCsvSummary(TaskCsvSummary):
-    """The TSan way of summarising reports"""
-
-    __sanitizer_name = 'ThreadSanitizer'
-    __supported_categories = ['data race']
-    __expected_funcs_per_report = 2
-    __field_names = ['folder', 'file', 'function', 'op', 'size']
+    __tsan_data_race_expected_funcs_per_report = 2
 
     def setup(self, options):
-        self._setup(options)
-        self.__header_row = ['id'] + \
-                            self.__field_names + \
-                            list(reversed(self.__field_names)) + \
-                            ['global location']
+        self.__printer = Printer(options)
+        self.__csv_base_dir_path = os.path.join(options.output_root_path, self.__csv_base_dir_name)
+        utils.files.makedirs(self.__csv_base_dir_path)
+        self.__controls = {
+            'tsan': {
+                'data race': {
+                    'header_func': self.__header_tsan_data_race,
+                    'process_func': self.__process_tsan_data_race
+                }
+            }
+        }
 
     def process(self, report):
-        if report.sanitizer == self.__sanitizer_name and report.category in self.__supported_categories:
-            if self.__header_row:
-                self._add_row(report.dir_path, self.__header_row)
-                self.__header_row = None
-            row = [report.no]
-            func_no = 0
-            for stack in report.call_stacks:
-                if 'tsan_data_race_type' in stack.special and len(stack.frames) > 0:
-                    func_no += 1
-                    details = [
-                        stack.frames[0].src_file_dir_rel_path,
-                        stack.frames[0].src_file_name,
-                        stack.frames[0].func_name,
-                        stack.special.get('tsan_data_race_type'),
-                        stack.special.get('tsan_data_race_bytes')
-                    ]
-                    # reversing the 2nd function improves the readability of the file
-                    row.extend(list(reversed(details) if func_no == 2 else details))
-            for i in range(func_no, self.__expected_funcs_per_report):
-                row.extend([None, None, None, None, None])
-            row = ['?' if not cell else cell for cell in row]
-            row.append(report.special.get('tsan_data_race_global_location', ''))
-            self._add_row(report.dir_path, row)
+        sanitizer_name_short = report.sanitizer.name_short
+        category_name = report.category_name
+        controls = self.__controls.get(sanitizer_name_short, {}).get(category_name)
+        if controls:
+            if not 'csv' in controls:
+                csv_file_path = os.path.join(
+                    self.__csv_base_dir_path,
+                    sanitizer_name_short + '-' +
+                    category_name.lower().replace(' ', '-') +
+                    self.__csv_file_ending)
+                csv_file = open(csv_file_path, 'w')
+                if csv_file:
+                    self.__printer.task_info('creating ' + csv_file_path)
+                    controls['csv'] = {
+                        'file': csv_file,
+                        'writer': csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
+                    }
+                if 'header_func' in controls:
+                    self.__write_row(sanitizer_name_short, category_name, controls['header_func']())
+            if 'process_func' in controls:
+                self.__write_row(sanitizer_name_short, category_name, controls['process_func'](report))
+
+    def teardown(self):
+        for categories in self.__controls.values():
+            for controls in categories.values():
+                controls['csv']['file'].close()
+
+    def __write_row(self, sanitizer_name_short, category_name, row):
+        csv = self.__controls.get(sanitizer_name_short, {}).get(category_name, {}).get('csv')
+        if csv and row:
+            csv['writer'].writerow([str(cell) for cell in row])
+
+    def __header_tsan_data_race(self):
+        field_names = ['folder', 'file', 'function', 'op', 'size']
+        return ['id'] + field_names + list(reversed(field_names)) + ['global location']
+
+    def __process_tsan_data_race(self, report):
+        row = [report.number]
+        func_count = 0
+        for stack in report.call_stacks:
+            if 'tsan_data_race_type' in stack.special and len(stack.frames) > 0:
+                func_count += 1
+                details = [
+                    stack.frames[0].src_file_dir_rel_path,
+                    stack.frames[0].src_file_name,
+                    stack.frames[0].func_name,
+                    stack.special.get('tsan_data_race_type'),
+                    stack.special.get('tsan_data_race_bytes')
+                ]
+                # reversing the 2nd function improves the readability of the file
+                row.extend(list(reversed(details) if func_count == 2 else details))
+        for i in range(func_count, self.__tsan_data_race_expected_funcs_per_report):
+            row.extend([None, None, None, None, None])
+        row = ['?' if not cell else cell for cell in row]
+        row.append(report.special.get('tsan_data_race_global_location', ''))
+        return row

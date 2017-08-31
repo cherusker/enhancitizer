@@ -16,15 +16,17 @@ class Printer(object):
 
     def welcome(self):
         # TODO: add a nice welcome message
-        return self
+        return self.nl()
     
     def settings(self):
-        print('Settings:\n' + \
-              '  project root:  ' + self.__options.project_root_path + '\n' + \
-              '  output folder: ' + self.__options.output_root_path + '\n' + \
-              '  logfiles:')        
-        for path in self.__options.logfiles_paths:
-            print('    ' + path)
+        if not self.__options.print_minimal:
+            print('Settings:\n' + \
+                  '  project root:  ' + self.__options.project_root_path + '\n' + \
+                  '  output folder: ' + self.__options.output_root_path + '\n' + \
+                  '  logfiles:')        
+            for path in self.__options.logfiles_paths:
+                print('    ' + path)
+            self.nl()
         return self
 
     def nl(self):
@@ -45,7 +47,7 @@ class Printer(object):
             print('  ' + str(info))
         return self
 
-    def task_debug_info(self, info):
+    def task_info_debug(self, info):
         if self.__options.print_debug:
             print('  ' + str(info))
         return self

@@ -15,7 +15,7 @@ from tasks.analysing import TaskAnalyseReports
 from tasks.blacklist import TaskCreateTSanBlacklist
 from tasks.compaction import TaskCompactReports
 from tasks.context import TaskAddTSanContext
-from tasks.csv import TaskTSanCsvSummary
+from tasks.csv import TaskCreateCsvSummaries
 from tasks.duplication import TaskEliminateDuplicateReports
 from tasks.skeleton import TaskBuildSkeleton
 from tasks.stuff import TaskSummary
@@ -37,26 +37,24 @@ class Enhancitizer(object):
         """Run the enhancitizer"""
         bank = ReportsBank(self.__options)
         self.__printer.welcome() \
-                      .nl() \
                       .settings() \
-                      .nl() \
                       .task_description('Collecting existing reports ...')
         watch = StopWatch().start()
         bank.collect_reports()
-        self.__printer.task_debug_info('execution time: ' + str(watch)) \
+        self.__printer.task_info_debug('execution time: ' + str(watch)) \
                       .nl() \
                       .task_description('Extracting new reports ...')
         watch.start()
         for path in self.__options.logfiles_paths:
             bank.extract_reports(path)
-        self.__printer.task_debug_info('execution time: ' + str(watch)).nl()
+        self.__printer.task_info_debug('execution time: ' + str(watch)).nl()
         tasks = [
             TaskEliminateDuplicateReports(bank), # should be the first thing
             TaskCompactReports(), # after the elimination, before "real" tasks
             TaskAnalyseReports(), # after the elimination, before "real" tasks
             TaskCreateTSanBlacklist(),
             TaskBuildSkeleton(),
-            TaskTSanCsvSummary(),
+            TaskCreateCsvSummaries(),
             TaskAddTSanContext(), # should run late to speed up stack parsing of the previous tasks
             TaskSummary() # should be the last thing
         ]
@@ -73,4 +71,4 @@ class Enhancitizer(object):
             if hasattr(task, 'teardown'):
                 task.teardown()
             if hasattr(task, 'description'):
-                self.__printer.task_debug_info('execution time: ' + str(watch)).nl()
+                self.__printer.task_info_debug('execution time: ' + str(watch)).nl()

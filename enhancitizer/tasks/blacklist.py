@@ -18,12 +18,13 @@ from utils.printer import Printer
 class TaskCreateBlacklist(object):
     """Base class for creating blacklists; can be inherited to make more sense"""
 
-    __blacklists_dir_path = 'blacklists'
+    __blacklists_dir_name = 'blacklists'
+    __blacklist_file_ending = '.blacklist'
 
-    def _setup(self, options, sanitizer_name):
+    def _setup(self, options, sanitizer_name_short):
         self.__blacklist_file_path = os.path.join(
-            options.output_root_path, self.__blacklists_dir_path,
-            'clang-' + sanitizer_name.lower() + '-blacklist')
+            options.output_root_path, self.__blacklists_dir_name,
+            'clang-' + sanitizer_name_short + self.__blacklist_file_ending)
         # dir_name.file_name.func_name
         self.__printer = Printer(options)
         self.__data = OrderedDict()
@@ -61,14 +62,15 @@ class TaskCreateTSanBlacklist(TaskCreateBlacklist):
 
     description = 'Creating TSan blacklist ...'
 
-    __sanitizer_name = 'ThreadSanitizer'
-    __supported_categories = ['data race']
+    __supported_sanitizer_name_short = 'tsan'
+    __supported_category_names = ['data race']
 
     def setup(self, options):
-        self._setup(options, self.__sanitizer_name)
+        self._setup(options, self.__supported_sanitizer_name_short)
 
     def process(self, report):
-        if report.sanitizer == self.__sanitizer_name and report.category in self.__supported_categories:
+        if report.sanitizer.name_short == self.__supported_sanitizer_name_short and \
+           report.category_name in self.__supported_category_names:
             for stack in report.call_stacks:
                 if 'tsan_data_race_type' in stack.special:
                     self._add_stack_frame(stack.frames[0])

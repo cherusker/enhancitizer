@@ -18,15 +18,17 @@ class TaskAddTSanContext(object):
 
     description = 'Adding TSan context ...'
 
-    __sanitizer_name = 'ThreadSanitizer'
-    __supported_categories = ['data race']
+    __supported_sanitizer_name_short = 'tsan'
+    __supported_category_names = ['data race']
     __max_stack_frames = 3 # max amount of lookups from the top of the call stack
     
     def setup(self, options):
         self.__printer = Printer(options)
 
     def process(self, report):
-        if report.new and report.sanitizer == self.__sanitizer_name and report.category in self.__supported_categories:
+        if report.is_new and \
+           report.sanitizer.name_short == self.__supported_sanitizer_name_short and \
+           report.category_name in self.__supported_category_names:
             report_file_path = report.file_path
             buffer_file_path = report_file_path + '.buffer'
             self.__printer.task_info('adding context to ' + str(report))

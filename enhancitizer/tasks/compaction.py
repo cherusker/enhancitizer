@@ -23,19 +23,19 @@ class TaskCompactReports(object):
         self.__data = {}
 
     def process(self, report):
-        sanitizer = report.sanitizer
-        category = report.category
-        orig_no = report.no
+        sanitizer = report.sanitizer.name_short
+        category = report.category_name
+        number_orig = report.number
         if not sanitizer in self.__data:
             self.__data[sanitizer] = {}
         if not category in self.__data[sanitizer]:
             self.__data[sanitizer][category] = 0
         self.__data[sanitizer][category] += 1
-        new_no = self.__data[sanitizer][category]
-        if new_no != orig_no:
+        number_new = self.__data[sanitizer][category]
+        if number_new != number_orig:
             orig_report_str = str(report)
-            new_file_path = utils.files.report_file_path(os.path.dirname(report.file_path), new_no)
+            new_file_path = utils.files.report_file_path(os.path.dirname(report.file_path), number_new)
             os.rename(report.file_path, new_file_path)
-            report.no = new_no
+            report.number = number_new
             report.file_path = new_file_path
             self.__printer.task_info('renaming: ' + orig_report_str + ' -> ' + str(report))

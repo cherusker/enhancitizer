@@ -27,14 +27,14 @@ class TaskBuildSkeleton(object):
         self.__printer = Printer(options)
         self.__skeletons = {}
         self.__add_funcs = {
-            'ThreadSanitizer': {
+            'tsan': {
                 'data race': self.__add_tsan_data_race
             }
         }
 
     def process(self, report):
-        if report.category in self.__add_funcs.get(report.sanitizer, {}):
-            self.__add_funcs[report.sanitizer][report.category](report)
+        if report.category_name in self.__add_funcs.get(report.sanitizer.name_short, {}):
+            self.__add_funcs[report.sanitizer.name_short][report.category_name](report)
 
     def __add(self, report, stack_frame_id, stack_frame):
         if stack_frame.complete:
@@ -55,7 +55,7 @@ class TaskBuildSkeleton(object):
         for src_file_path, skeleton in self.__skeletons.items():
             skeleton_file_path = os.path.join(self.__root_dir_path, src_file_path + '.skeleton')
             self.__printer.task_info(
-                '  creating ' + skeleton_file_path + ' (' + str(skeleton.marked_lines_count) + ' lines)')
+                'creating ' + skeleton_file_path + ' (' + str(skeleton.marked_lines_count) + ' lines)')
             utils.files.makedirs(os.path.dirname(skeleton_file_path))
             with open(skeleton_file_path, 'w') as skeleton_file:
                 skeleton.write(skeleton_file)
